@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:CouchbaseMauiApp.Core.ViewModels"
+             xmlns:models="clr-namespace:CouchbaseMauiApp.Core.Models"
+             x:Class="CouchbaseMauiApp.MainPage"
+             x:DataType="vm:MainViewModel"
+             Title="SyncFlow">
+
+    <Grid RowDefinitions="Auto,*,Auto" Padding="16">
+        <!-- Header -->
+        <HorizontalStackLayout Grid.Row="0" Spacing="8" VerticalOptions="Center">
+            <Label Text="SyncFlow: Couchbase P2P Demo" FontSize="24" FontAttributes="Bold" VerticalOptions="Center"/>
+        </HorizontalStackLayout>
+
+        <!-- Main Content -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Spacing="16">
+                <!-- Config List -->
+                <Frame Padding="16" BackgroundColor="#F5F5F5">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="Configuration Files" FontSize="18" FontAttributes="Bold"/>
+                        <CollectionView ItemsSource="{Binding Configs}">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="models:ConfigModel">
+                                    <Frame Padding="8" BackgroundColor="White">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <VerticalStackLayout Grid.Column="0">
+                                                <Label Text="{Binding DeviceName}" FontSize="16"/>
+                                                <Label Text="{Binding LastModified, StringFormat='Last modified: {0:g}'}" FontSize="12" TextColor="Gray"/>
+                                            </VerticalStackLayout>
+                                            <Button Grid.Column="1" 
+                                                    Text="Delete" 
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MainViewModel}}, Path=DeleteConfigCommand}"
+                                                    CommandParameter="{Binding .}"
+                                                    BackgroundColor="#ED2224"
+                                                    TextColor="White"/>
+                                        </Grid>
+                                    </Frame>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Broadcast Section -->
+                <Frame Padding="16" BackgroundColor="#F5F5F5">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="Broadcast Configuration (P2P Server)" FontSize="18" FontAttributes="Bold"/>
+                        <Picker Title="Select Config to Broadcast" ItemsSource="{Binding Configs}" ItemDisplayBinding="{Binding DeviceName}"/>
+                        <Button Text="Start Broadcast" 
+                                Command="{Binding StartBroadcastCommand}"
+                                CommandParameter="{Binding SelectedItem, Source={RelativeSource AncestorType={x:Type Picker}}}"
+                                BackgroundColor="#ED2224"
+                                TextColor="White"
+                                IsEnabled="{Binding IsBroadcasting, Converter={StaticResource InverseBooleanConverter}}"/>
+                        <Button Text="Stop Broadcast" 
+                                Command="{Binding StopBroadcastCommand}"
+                                BackgroundColor="#ED2224"
+                                TextColor="White"
+                                IsVisible="{Binding IsBroadcasting}"/>
+                        <Label Text="{Binding BroadcastUrl}" 
+                               IsVisible="{Binding IsBroadcasting}"
+                               FontAttributes="Italic"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Receive Section -->
+                <Frame Padding="16" BackgroundColor="#F5F5F5">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="Receive Configuration (P2P Client)" FontSize="18" FontAttributes="Bold"/>
+                        <Entry Placeholder="IP Address" Text="{Binding IpAddress}"/>
+                        <Entry Placeholder="Port" Text="{Binding Port}" Keyboard="Numeric"/>
+                        <Button Text="Start Receive" 
+                                Command="{Binding StartReceiveCommand}"
+                                BackgroundColor="#ED2224"
+                                TextColor="White"
+                                IsEnabled="{Binding IsReceiving, Converter={StaticResource InverseBooleanConverter}}"/>
+                        <Button Text="Stop Receive" 
+                                Command="{Binding StopReceiveCommand}"
+                                BackgroundColor="#ED2224"
+                                TextColor="White"
+                                IsVisible="{Binding IsReceiving}"/>
+                    </VerticalStackLayout>
+                </Frame>
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Error Message -->
+        <Label Grid.Row="2" 
+               Text="{Binding ErrorMessage}" 
+               TextColor="Red" 
+               IsVisible="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}"/>
+    </Grid>
+</ContentPage>
