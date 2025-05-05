@@ -12,6 +12,8 @@
             </ResourceDictionary.MergedDictionaries>
             <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
             <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+            <converters:DictionaryToStringConverter x:Key="DictionaryToStringConverter"/>
+            <converters:BoolToStartStopConverter x:Key="BoolToStartStopConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

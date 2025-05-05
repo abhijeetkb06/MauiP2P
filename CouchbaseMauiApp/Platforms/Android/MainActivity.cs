@@ -2,6 +2,7 @@
 using Android.Content.PM;
 using Android.OS;
 using Couchbase.Lite.Support;
+using Couchbase.Lite.Logging;
 
 namespace CouchbaseMauiApp;
 
@@ -12,5 +13,6 @@ public class MainActivity : MauiAppCompatActivity
     {
         base.OnCreate(savedInstanceState);
         Couchbase.Lite.Support.Droid.Activate(this);
+        LogSinks.Console = new ConsoleLogSink(LogLevel.Verbose);
     }
 }

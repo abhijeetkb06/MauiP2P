@@ -1,6 +1,0 @@
-framework module LiteCore {
-  umbrella header "LiteCore.h"
-  export *
-
-  module * { export * }
-}

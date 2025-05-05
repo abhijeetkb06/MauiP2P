@@ -3,16 +3,22 @@ using CommunityToolkit.Mvvm.Input;
 using CouchbaseMauiApp.Core.Models;
 using CouchbaseMauiApp.Core.Services;
 using System.Collections.ObjectModel;
+using System.Threading;
+using Couchbase.Lite;
 
 namespace CouchbaseMauiApp.Core.ViewModels;
 
-public partial class MainViewModel : ObservableObject
+public partial class MainViewModel : ObservableObject, IDisposable
 {
     private DatabaseService? _databaseService;
     private readonly SyncService _syncService;
+    private ListenerToken? _dbChangeListenerToken;
 
     [ObservableProperty]
     private ObservableCollection<ConfigModel> _configs;
+
+    [ObservableProperty]
+    private ConfigModel? _selectedConfig;
 
     [ObservableProperty]
     private bool _isBroadcasting;
@@ -32,11 +38,24 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private int _port;
 
+    [ObservableProperty]
+    private bool _showReceivedOnly = false;
+
+    [ObservableProperty]
+    private ObservableCollection<ConfigModel> _receivedConfigs = new();
+
     public MainViewModel(SyncService syncService)
     {
         _syncService = syncService;
         _configs = new ObservableCollection<ConfigModel>();
         // Do not initialize DatabaseService here
+
+        // Subscribe to replication complete event to reload configs
+        _syncService.ReplicationCompleted += () =>
+        {
+            // Reload configs on the main thread
+            MainThread.BeginInvokeOnMainThread(() => LoadConfigsAsync());
+        };
     }
 
     private void EnsureDatabaseService()
@@ -45,7 +64,20 @@ public partial class MainViewModel : ObservableObject
         {
             _databaseService = new DatabaseService();
             _syncService.SetDatabaseService(_databaseService);
+
+            // Add database change listener for real-time UI updates
+            _dbChangeListenerToken = _databaseService.LocalCollection.AddChangeListener((sender, args) =>
+            {
+                // Reload configs on the main thread when database changes
+                MainThread.BeginInvokeOnMainThread(() => LoadConfigsAsync());
+            });
         }
+    }
+
+    public void Dispose()
+    {
+        _dbChangeListenerToken?.Remove();
+        _dbChangeListenerToken = null;
     }
 
     private async void LoadConfigsAsync()
@@ -53,18 +85,35 @@ public partial class MainViewModel : ObservableObject
         try
         {
             EnsureDatabaseService();
+            if (_databaseService == null) return;
+            
             await EnsureMockConfigsAsync();
+            // Local configs
             var configs = await _databaseService.GetAllConfigsAsync();
             Configs.Clear();
             foreach (var config in configs)
             {
                 Configs.Add(config);
             }
+            // Received configs
+            var received = await _databaseService.GetReceivedConfigsAsync();
+            ReceivedConfigs.Clear();
+            foreach (var config in received)
+            {
+                ReceivedConfigs.Add(config);
+            }
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Failed to load configs: {ex.Message}";
         }
+    }
+
+    [RelayCommand]
+    private void ToggleViewMode()
+    {
+        ShowReceivedOnly = !ShowReceivedOnly;
+        LoadConfigsAsync();
     }
 
     private async Task EnsureMockConfigsAsync()
@@ -97,19 +146,24 @@ public partial class MainViewModel : ObservableObject
                 CreatedAt = now,
                 LastModified = now
             };
-            await _databaseService.SaveConfigAsync(mock1);
-            await _databaseService.SaveConfigAsync(mock2);
-            await _databaseService.SaveConfigAsync(mock3);
+            await _databaseService.SaveConfigAsync(mock1, false);
+            await _databaseService.SaveConfigAsync(mock2, false);
+            await _databaseService.SaveConfigAsync(mock3, false);
         }
     }
 
     [RelayCommand]
-    private async Task StartBroadcast(ConfigModel config)
+    private async Task StartBroadcast()
     {
         try
         {
+            if (SelectedConfig == null)
+            {
+                ErrorMessage = "Please select a config to broadcast.";
+                return;
+            }
             IsBroadcasting = true;
-            await _syncService.StartBroadcastAsync(config);
+            await _syncService.StartBroadcastAsync(SelectedConfig);
             BroadcastUrl = _syncService.GetBroadcastUrl();
         }
         catch (Exception ex)
@@ -155,8 +209,12 @@ public partial class MainViewModel : ObservableObject
         try
         {
             EnsureDatabaseService();
-            await _databaseService.DeleteConfigAsync(config.Id);
-            Configs.Remove(config);
+            // Delete from the appropriate collection based on current view mode
+            await _databaseService.DeleteConfigAsync(config.Id, ShowReceivedOnly);
+            if (ShowReceivedOnly)
+                ReceivedConfigs.Remove(config);
+            else
+                Configs.Remove(config);
         }
         catch (Exception ex)
         {
@@ -170,7 +228,8 @@ public partial class MainViewModel : ObservableObject
         try
         {
             EnsureDatabaseService();
-            await _databaseService.SaveConfigAsync(config);
+            // Always save to local collection when manually saving
+            await _databaseService.SaveConfigAsync(config, false);
             LoadConfigsAsync();
         }
         catch (Exception ex)

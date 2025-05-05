@@ -14,6 +14,7 @@ public class SyncService : IDisposable
     private DatabaseService? _databaseService;
     private URLEndpointListener? _listener;
     private Replicator? _replicator;
+    public event Action? ReplicationCompleted;
 
     // Call this before using SyncService
     public void SetDatabaseService(DatabaseService databaseService)
@@ -26,7 +27,11 @@ public class SyncService : IDisposable
         if (_databaseService == null) throw new InvalidOperationException("DatabaseService not set");
         try
         {
-            var listenerConfig = new URLEndpointListenerConfiguration(new List<Collection> { _databaseService.Database.GetDefaultCollection() })
+            // Clear staging and copy selected config to staging
+            await _databaseService.ClearStagingAsync();
+            await _databaseService.CopyConfigToStagingAsync(config);
+
+            var listenerConfig = new URLEndpointListenerConfiguration(new List<Collection> { _databaseService.StagingCollection })
             {
                 DisableTLS = true, // Only for testing
                 Authenticator = new ListenerPasswordAuthenticator((sender, username, password) =>
@@ -66,23 +71,35 @@ public class SyncService : IDisposable
         if (_databaseService == null) throw new InvalidOperationException("DatabaseService not set");
         try
         {
-            var targetUrl = new Uri($"ws://{ipAddress}:{port}");
+            var targetUrl = new Uri($"ws://{ipAddress}:{port}/syncflow_db");
             var endpoint = new URLEndpoint(targetUrl);
             var config = new ReplicatorConfiguration(endpoint);
-            config.AddCollection(_databaseService.Database.GetDefaultCollection());
+            config.AddCollection(_databaseService.StagingCollection, new CollectionConfiguration());
             config.ReplicatorType = ReplicatorType.PushAndPull;
             config.Continuous = false;
+            config.Authenticator = new BasicAuthenticator("admin", "password");
 
             _replicator = new Replicator(config);
-            _replicator.AddChangeListener((sender, args) =>
+            _replicator.AddChangeListener(async (sender, args) =>
             {
-                if (args.Status.Error != null)
+                var status = args.Status;
+                Console.WriteLine($"[Replicator] Activity: {status.Activity}, Error: {status.Error}");
+                if (status.Activity == ReplicatorActivityLevel.Idle)
                 {
-                    Console.WriteLine($"Replication Error: {args.Status.Error}");
+                    Console.WriteLine("[Replicator] Replication is idle (likely finished)");
+                    await _databaseService.CopyStagingToReceivedAsync();
+                    ReplicationCompleted?.Invoke();
                 }
+                if (status.Activity == ReplicatorActivityLevel.Stopped)
+                {
+                    Console.WriteLine("[Replicator] Replication stopped");
+                    await _databaseService.CopyStagingToReceivedAsync();
+                    ReplicationCompleted?.Invoke();
+                }
+                if (status.Error != null)
+                    Console.WriteLine($"[Replicator] Error: {status.Error}");
             });
-
-            _replicator.Start();
+            await Task.Run(() => _replicator.Start());
         }
         catch (Exception ex)
         {
