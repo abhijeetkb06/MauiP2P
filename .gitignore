@@ -1,6 +1,8 @@
 # Build output
-*/bin/
-*/obj/
+/bin/
+/obj/
+**/bin/
+**/obj/
 
 # VS Code
 .vscode/
@@ -8,19 +10,37 @@
 # macOS system files
 .DS_Store
 
-# MAUI artifacts
+# MAUI Android artifacts
 **/platforms/android/**/*.apk
 **/platforms/android/**/*.aab
 **/platforms/android/**/intermediates/
 **/platforms/android/**/build/
+**/platforms/android/**/*.dex
+**/platforms/android/**/*.class
+**/platforms/android/**/*.pdb
+**/platforms/android/**/*.so
+**/platforms/android/**/*.dll
+
+# MAUI iOS artifacts
 **/platforms/ios/DerivedData/
 **/platforms/ios/build/
+**/*.app
+**/*.ipa
+**/*.dSYM/
 
-# IDE files
+# Build-generated files
+*.pdb
+*.dll
+*.exe
+*.cache
+*.log
+*.tmp
+
+# IDE settings
 *.user
 *.suo
 .idea/
-*.launch.json
+*.sln.docstates
 
-# Logs
-*.log
+# Environment files
+.env
