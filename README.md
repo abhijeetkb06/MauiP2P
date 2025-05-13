@@ -1,6 +1,7 @@
 # SyncFlow - P2P Configuration Synchronization
 
-![SyncFlow Demo Screenshot](docs/screenshot.png)
+![image](https://github.com/user-attachments/assets/03f34ba3-7916-447d-9081-7f68352cb376)
+
 
 SyncFlow is a .NET MAUI application that enables peer-to-peer (P2P) configuration synchronization between devices using Couchbase Lite. It provides a simple and efficient way to share configuration data between devices without requiring a central server.
 
