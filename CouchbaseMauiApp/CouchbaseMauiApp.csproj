@@ -38,6 +38,7 @@
   <!-- Android specific settings -->
   <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-android'">
     <RuntimeIdentifier>android-arm64</RuntimeIdentifier>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
   </PropertyGroup>
 
   <ItemGroup>
