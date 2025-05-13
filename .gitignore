@@ -1,0 +1,26 @@
+# Build output
+*/bin/
+*/obj/
+
+# VS Code
+.vscode/
+
+# macOS system files
+.DS_Store
+
+# MAUI artifacts
+**/platforms/android/**/*.apk
+**/platforms/android/**/*.aab
+**/platforms/android/**/intermediates/
+**/platforms/android/**/build/
+**/platforms/ios/DerivedData/
+**/platforms/ios/build/
+
+# IDE files
+*.user
+*.suo
+.idea/
+*.launch.json
+
+# Logs
+*.log
