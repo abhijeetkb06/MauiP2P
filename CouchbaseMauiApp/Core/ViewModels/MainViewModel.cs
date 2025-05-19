@@ -5,6 +5,9 @@ using CouchbaseMauiApp.Core.Services;
 using System.Collections.ObjectModel;
 using System.Threading;
 using Couchbase.Lite;
+using CouchbaseMauiApp.Views;
+using CommunityToolkit.Maui.Views;
+using Microsoft.Maui.Devices;
 
 namespace CouchbaseMauiApp.Core.ViewModels;
 
@@ -48,6 +51,21 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         _syncService = syncService;
         _configs = new ObservableCollection<ConfigModel>();
+
+        // Set default IP for Receive Configuration
+        if (DeviceInfo.Platform == DevicePlatform.Android)
+        {
+            IpAddress = "10.0.2.2";
+        }
+        else if (DeviceInfo.Platform == DevicePlatform.iOS)
+        {
+            IpAddress = "127.0.0.1";
+        }
+        else
+        {
+            IpAddress = string.Empty;
+        }
+
         // Do not initialize DatabaseService here
 
         // Subscribe to replication complete event to reload configs
@@ -93,6 +111,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             Configs.Clear();
             foreach (var config in configs)
             {
+                config.SyncConfigDataToFormatted();
                 Configs.Add(config);
             }
             // Received configs
@@ -100,6 +119,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             ReceivedConfigs.Clear();
             foreach (var config in received)
             {
+                config.SyncConfigDataToFormatted();
                 ReceivedConfigs.Add(config);
             }
         }
@@ -165,6 +185,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
             IsBroadcasting = true;
             await _syncService.StartBroadcastAsync(SelectedConfig);
             BroadcastUrl = _syncService.GetBroadcastUrl();
+
+            // Parse port from BroadcastUrl and set Port property
+            if (!string.IsNullOrEmpty(BroadcastUrl))
+            {
+                try
+                {
+                    var uri = new Uri(BroadcastUrl.Replace("ws://", "http://")); // Uri needs http/https
+                    Port = uri.Port;
+                }
+                catch { /* ignore parse errors */ }
+            }
         }
         catch (Exception ex)
         {
@@ -235,6 +266,49 @@ public partial class MainViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             ErrorMessage = $"Failed to save config: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task DeleteReceivedConfig(ConfigModel config)
+    {
+        try
+        {
+            EnsureDatabaseService();
+            await _databaseService.DeleteConfigAsync(config.Id, true); // true = received collection
+            ReceivedConfigs.Remove(config);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Failed to delete received config: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task EditConfig(ConfigModel config)
+    {
+        var mainPage = Application.Current?.MainPage;
+        if (mainPage == null) return;
+        var popup = new EditConfigPopup(config);
+        var tcs = new TaskCompletionSource<ConfigModel?>();
+        popup.SaveClicked += (s, editedConfig) => tcs.TrySetResult(editedConfig);
+        popup.CancelClicked += (s, e) => tcs.TrySetResult(null);
+        mainPage.ShowPopup(popup);
+        var result = await tcs.Task;
+        if (result != null)
+        {
+            // Update the original config object in the collection
+            config.DeviceName = result.DeviceName;
+            config.ConfigData = new Dictionary<string, object>(result.ConfigData);
+            config.LastModified = DateTime.UtcNow;
+            await SaveConfig(config);
+            // Optionally, force UI refresh:
+            var idx = Configs.IndexOf(config);
+            if (idx >= 0)
+            {
+                Configs.RemoveAt(idx);
+                Configs.Insert(idx, config);
+            }
         }
     }
 } 

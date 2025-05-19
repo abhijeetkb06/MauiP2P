@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<toolkit:Popup xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+               xmlns:models="clr-namespace:CouchbaseMauiApp.Core.Models"
+               x:Class="CouchbaseMauiApp.Views.EditConfigPopup"
+               x:DataType="models:ConfigModel"
+               Size="400,500">
+    <VerticalStackLayout Padding="20" Spacing="16">
+        <Label Text="Edit Configuration" FontSize="20" FontAttributes="Bold"/>
+        <Entry Text="{Binding DeviceName}" Placeholder="Device Name"/>
+        <Label Text="Settings:" FontAttributes="Bold"/>
+        <CollectionView ItemsSource="{Binding FormattedConfigData}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:ConfigModel+ConfigDataItem">
+                    <HorizontalStackLayout Spacing="8">
+                        <Label Text="{Binding Key}" WidthRequest="100"/>
+                        <Entry Text="{Binding Value}" WidthRequest="200"/>
+                    </HorizontalStackLayout>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+        <HorizontalStackLayout Spacing="16" HorizontalOptions="End">
+            <Button Text="Cancel" x:Name="CancelButton"/>
+            <Button Text="Save" x:Name="SaveButton" BackgroundColor="#ED2224" TextColor="White"/>
+        </HorizontalStackLayout>
+    </VerticalStackLayout>
+</toolkit:Popup> 
